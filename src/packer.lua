@@ -4,20 +4,22 @@ local SMALL, MEDIUM, LARGE, HUGE = 16, 256, 65536, 4294967295
 
 function packer.pack(signature, ...)
   local params = {...}
-  local output = ''
+  local output
+  local count = 0
+  for _ in pairs(params) do count = count + 1 end
 
-  if #params < SMALL then
-    output = output .. string.pack('>B', 0xB0 | #params)
-  elseif #params < MEDIUM then
-    output = output .. string.char(0xDC) .. pack('>B', #params)
-  elseif #params < LARGE then
-    output = output .. string.char(0xDD) .. pack('>H', #params)
+  if count < SMALL then
+    output = string.pack('>B', 0xB0 | count)
+  elseif count < MEDIUM then
+    output = string.char(0xDC) .. string.pack('>B', count)
+  elseif count < LARGE then
+    output = string.char(0xDD) .. string.pack('>H', count)
   else
     return nil, 'Too many parameters'
   end
 
   output = output .. string.char(signature)
-
+  
   for i, v in ipairs(params) do
     output = output .. p(v)
   end
@@ -57,7 +59,7 @@ end
 
 function packInteger(param)
   if param >= 0 and param <= 127 then
-    return string.pack('>B', 0 | param)
+    return string.pack('>B', param)
   elseif param >= -16 and param < 0 then
     return string.pack('>b', 0xF0 | param)
   elseif param >= -128 and param <= -17 then
@@ -79,7 +81,7 @@ end
 
 function packString(param)
   if #param < SMALL then
-    return pack('B', 0x80 | #param) .. param
+    return string.pack('B', 0x80 | #param) .. param
   elseif #param < MEDIUM then
     return string.char(0xD0) .. string.pack('>B', #param) .. param
   elseif #param < LARGE then
@@ -93,16 +95,18 @@ end
 
 function packList(param)
   param.type = nil
-  local output = ''
+  local output
+  local count = 0
+  for _ in pairs(param) do count = count + 1 end
 
-  if #param < SMALL then
-    output = output .. string.pack('>B', 0x90 | #param)
-  elseif #param < MEDIUM then
-    output = output .. string.char(0xD4) .. string.pack('>B', #param)
-  elseif #param < LARGE then
-    output = output .. string.char(0xD5) .. string.pack('>H', #param)
-  elseif #param < HUGE then
-    output = output .. string.char(0xD6) .. string.pack('>L', #param)
+  if count < SMALL then
+    output = string.pack('>B', 0x90 | count)
+  elseif count < MEDIUM then
+    output = string.char(0xD4) .. string.pack('>B', count)
+  elseif count < LARGE then
+    output = string.char(0xD5) .. string.pack('>H', count)
+  elseif count < HUGE then
+    output = string.char(0xD6) .. string.pack('>L', count)
   else
     --error
   end
@@ -116,16 +120,19 @@ end
 
 function packDictionary(param)
   param.type = nil
-  local output = ''
+    
+  local output
+  local count = 0
+  for _ in pairs(param) do count = count + 1 end
 
-  if #param < SMALL then
-    output = output .. pack('>B', 0xA0 | #param)
-  elseif #param < MEDIUM then
-    output = output .. string.char(0xD8) .. string.pack('>B', #param)
-  elseif #param < LARGE then
-    output = output .. string.char(0xD9) .. string.pack('>H', #param)
-  elseif #param < HUGE then
-    output = output .. string.char(0xDA) .. string.pack('>L', #param)
+  if count < SMALL then
+    output = string.pack('>B', 0xA0 | count)
+  elseif count < MEDIUM then
+    output = string.char(0xD8) .. string.pack('>B', count)
+  elseif count < LARGE then
+    output = string.char(0xD9) .. string.pack('>H', count)
+  elseif count < HUGE then
+    output = string.char(0xDA) .. string.pack('>L', count)
   else
     --error
   end
@@ -138,6 +145,7 @@ function packDictionary(param)
 end
 
 function packStructure(param)
+  param.type = nil
   --todo
 end
 

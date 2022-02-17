@@ -5,7 +5,6 @@ local connection = {}
 connection.versions = { 4.4, 4.3, 3 }
 connection.ip = '127.0.0.1'
 connection.port = 7687
-connection.auth = {}
 
 local client = nil
 
@@ -58,29 +57,28 @@ function connection.connect()
     return result, err
   end
 
-  conn:settimeout(1)
+  conn:settimeout(3)
   conn:setoption('keepalive', true)
 
   -- Handshake
-  err = connection.write(string.char(0x60, 0x60, 0xB0, 0x17))
-  if err ~= nil then
+  sended, err = conn:send(string.char(0x60, 0x60, 0xB0, 0x17))
+  if sended == nil then
     return nil, err
   end
 
   -- Versions request
-  err = connection.write(packVersions())
-  if err ~= nil then
+  sended, err = conn:send(packVersions())
+  if sended == nil then
     return nil, err
   end
 
   -- Read version
-  msg, err = connection.read(4)
+  msg, err = conn:receive(4)
   if msg == nil then
-    return msg, err
+    return nil, err
   end
 
   local version = unpackVersion(msg)
-
   if #version > 0 then
     client = conn
     return version
@@ -94,18 +92,45 @@ function connection.write(data)
     return 'Not connected'
   end
 
-  local sended, err = client:send(data)
+  --print( tostring( string.pack('>H', string.len(data)) .. data .. string.char(0x00) .. string.char(0x00) )
+  local sended, err = client:send(string.pack('>H', string.len(data)) .. data .. string.char(0x00) .. string.char(0x00))
+  if sended == nil then
+    return err
+  end
+  
+  --print('sended:', sended)
+  --print(client:getstats())
+    
   -- todo chunking
 
   return nil
 end
 
-function connection.read(length)
+function connection.read()
   if client == nil or client:getpeername() == nil then
     return nil, 'Not connected'
   end
+  
+  --print('read', client:getstats())
+  
+  local header, length, err
+  local msg = ''
+  while true do
+    header, err = client:receive(2)
+    if header == nil then
+      return nil, err
+    end
+    
+    if string.byte(header, 1) == 0x00 and string.byte(header, 2) == 0x00 then
+      break
+    end
+    
+    length, _ = string.unpack('>H', header)
+    --print('reading:', length)
+    msg = msg .. client:receive(length)
+  end
 
-  return client:receive(length)
+  return msg
   -- todo chunking
 end
 
