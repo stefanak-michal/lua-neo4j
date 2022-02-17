@@ -1,4 +1,6 @@
-# lua-neo4j
+# Lua-Neo4j
+
+Unofficial library for communication with Neo4j database over bolt tcp protocol.
 
 WIP
 
