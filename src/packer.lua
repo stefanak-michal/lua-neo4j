@@ -122,7 +122,7 @@ end
 
 function fn.Structure(neotype, param)
   local structure = structures.byType(neotype)
-  local output = string.pack('>B', 0xB0 | (table.len(structure) - 2)) .. string.char(structure.signature)
+  local output = string.pack('>B', 0xB0 | #structure.keys) .. string.char(structure.signature)
   for k, v in pairs(structure) do
     for i = 1, #structure.keys, 1 do
       output = output .. fn[structure.types[i]](param[structure.keys[i]])

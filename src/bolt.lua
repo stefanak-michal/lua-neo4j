@@ -4,12 +4,6 @@ local connection = require('connection')
 local packer = require('packer')
 local unpacker = require('unpacker')
 
-function table.len(t)
-  local count = 0
-  for _ in pairs(t) do count = count + 1 end
-  return count
-end
-
 local function processMessage(msg)
   local signature, response = unpacker.unpack(msg)
   if signature == 0x70 then
@@ -67,7 +61,7 @@ function bolt.query(cypher, params, extra)
   end
   
   local output = {}
-  if table.len(rows) > 1 then
+  if #rows > 1 then
     table.remove(rows)
     for _, r in ipairs(rows) do
       local row = {}
