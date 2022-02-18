@@ -1,5 +1,5 @@
 local packer = {}
-local structures = require('src.structures')
+local structures = require('structures')
 local SMALL, MEDIUM, LARGE, HUGE = 16, 256, 65536, 4294967295
 
 function packer.pack(signature, ...)
@@ -149,8 +149,8 @@ function packStructure(neotype, param)
   local structure = structures.byType(neotype)
   local output = string.pack('>B', 0xB0 | (table.len(structure) - 2)) .. string.char(structure.signature)
   for k, v in pairs(structure) do
-    if k ~= 'signature' and k ~= 'neotype' then
-      output = output .. _G['pack' .. v](param[k])
+    for i = 1, #structure.keys, 1 do
+      output = output .. _G['pack' .. structure.types[i]](param[structure.keys[i]])
     end
   end
   return output

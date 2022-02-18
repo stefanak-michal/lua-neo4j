@@ -1,5 +1,5 @@
 local unpacker = {}
-local structures = require('src.structures')
+local structures = require('structures')
 local msg, offset
 
 function unpacker.unpack(message)
@@ -12,13 +12,16 @@ function unpacker.unpack(message)
 end
 
 function next(length)
+  length = length or 1
   local output = string.sub(msg, offset, offset + length - 1)
-  offset = offset + #output
+  --print(msg, ' ', offset, length, output, #output)
+  --print()
+  offset = offset + string.len(output)
   return output
 end
 
 function u()
-  local marker, _ = string.unpack('>B', next(1))
+  local marker, _ = string.unpack('>B', next())
   
   if marker == 0xC3 then
     return true
@@ -71,7 +74,7 @@ function unpackInteger(marker)
     local i, _ = string.unpack('>b', string.char(marker))
     return math.tointeger(i)
   elseif marker == 0xC8 then
-    local i, _ = string.unpack('>b', next(1))
+    local i, _ = string.unpack('>b', next())
     return math.tointeger(i)
   elseif marker == 0xC9 then
     local i, _ = string.unpack('>h', next(2))
@@ -101,7 +104,7 @@ function unpackString(marker)
   if marker >> 4 == 0x8 then
     length = marker - 0x80
   elseif marker == 0xD0 then
-    length, _ = string.unpack('>B', next(1))
+    length, _ = string.unpack('>B', next())
   elseif marker == 0xD1 then
     length, _ = string.unpack('>H', next(2))
   elseif marker == 0xD2 then
@@ -118,7 +121,7 @@ function unpackList(marker)
   if marker >> 4 == 0x9 then
     length = marker - 0x90
   elseif marker == 0xD4 then
-    length, _ = string.unpack('>B', next(1))
+    length, _ = string.unpack('>B', next())
   elseif marker == 0xD5 then
     length, _ = string.unpack('>H', next(2))
   elseif marker == 0xD6 then
@@ -140,7 +143,7 @@ function unpackDictionary(marker)
   if marker >> 4 == 0xA then
     length = marker - 0xA0
   elseif marker == 0xD8 then
-    length, _ = string.unpack('>B', next(1))
+    length, _ = string.unpack('>B', next())
   elseif marker == 0xD9 then
     length, _ = string.unpack('>H', next(2))
   elseif marker == 0xDA then
@@ -162,22 +165,20 @@ function unpackStructure(marker)
   if marker >> 4 == 0xB then
     size = marker - 0xB0
   elseif marker == 0xDC then
-    size, _ = string.unpack('>B', next(1))
+    size, _ = string.unpack('>B', next())
   elseif marker == 0xDD then
     size, _ = string.unpack('>H', next(2))
   else
     return nil
   end
   
-  local signature, _ = string.unpack('>B', next(1))
+  local signature, _ = string.unpack('>B', next())
   local structure = structures.bySignature(signature)
   if structure ~= nil then
-    local output = {neotype = structure.neotype}
-    for k, v in pairs(structure) do
-      if k ~= 'neotype' and k ~= 'signature' then
-        local m, _ = string.unpack('>B', next(1))
-        output[k] = _G['unpack' .. v](m)
-      end
+    local output = {['neotype'] = structure.neotype}
+    for i = 1, #structure.keys, 1 do
+      local m, _ = string.unpack('>B', next())
+      output[structure.keys[i]] = _G['unpack' .. structure.types[i]](m)
     end
     return output
   else

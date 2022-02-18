@@ -1,8 +1,8 @@
 local bolt = {}
 
-local connection = require('src.connection')
-local packer = require('src.packer')
-local unpacker = require('src.unpacker')
+local connection = require('connection')
+local packer = require('packer')
+local unpacker = require('unpacker')
 
 function table.len(t)
   local count = 0
@@ -10,10 +10,32 @@ function table.len(t)
   return count
 end
 
+local function processMessage(msg)
+  local signature, response = unpacker.unpack(msg)
+  if signature == 0x70 then
+    return response
+  elseif signature == 0x7F then
+    if response == nil then
+      return nil, 'Failed'
+    else
+      return nil, '[' .. response.code .. '] ' .. response.message
+    end
+  elseif signature == 0x7E then
+    return nil, 'Ignored'
+  else
+    return nil, 'Unknown error'
+  end
+end
+
+
 -- Connect and login to database
 function bolt.init(auth)
   bolt.version = connection.connect()
+  
   auth.neotype = 'dictionary'
+  if auth.routing ~= nil then
+    auth.routing.neotype = 'dictionary'
+  end
   
   local packed = packer.pack(0x01, auth)
   local err = connection.write(packed)
@@ -21,21 +43,13 @@ function bolt.init(auth)
     return nil, err
   end
   
-  local msg, err = connection.read()
+  local msg
+  msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
   
-  local signature, response = unpacker.unpack(msg)
-  if signature == 0x70 then
-    return response
-  elseif signature == 0x7F then
-    return nil, 'Failed'
-  elseif signature == 0x7E then
-    return nil, 'Ignored'
-  else
-    return nil, 'No response from server'
-  end
+  return processMessage(msg)
 end
 
 -- Shortcut for run and pull, returns rows with associated field keys
@@ -87,20 +101,7 @@ function bolt.run(cypher, params, extra)
     return nil, err
   end
   
-  local signature, response = unpacker.unpack(msg)
-  if signature == 0x70 then
-    return response
-  elseif signature == 0x7F then
-    if response == nil then
-      return nil, 'Failed'
-    else
-      return nil, '[' .. response.code .. '] ' .. response.message
-    end
-  elseif signature == 0x7E then
-    return nil, 'Ignored'
-  else
-    return nil, 'Unknown error'
-  end
+  return processMessage(msg)
 end
 
 -- Pull records from last executed query, returns rows with indexed field keys and last record is stats
@@ -134,30 +135,121 @@ function bolt.pull(extra)
       return nil, '[' .. response.code .. '] ' .. response.message
     elseif signature == 0x7E then
       return nil, 'Ignored'
+    else
+      return nil, 'Unknown error'
     end
   until signature == 0x70
   
   return output
 end
 
+-- Discard waiting records (for pull) from last executed query
+function bolt.discard()
+  local extra = {['neotype'] = 'dictionary', ['n'] = -1}
+  local packed = packer.pack(0x2F, extra)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
+end
+
 -- Start transaction
 function bolt.begin(extra)
+  extra = extra or {}
+  extra.neotype = 'dictionary'
+  
+  local packed = packer.pack(0x11, extra)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
 end
 
 -- Commit transaction
-function bolt.commit(extra)
+function bolt.commit()
+  local packed = packer.pack(0x12)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
 end
 
 -- Rollback transaction
-function bolt.rollback(extra)
+function bolt.rollback()
+  local packed = packer.pack(0x13)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
 end
 
 -- Reset connection to initial state
 function bolt.reset()
+  local packed = packer.pack(0x0F)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
 end
 
 -- Route
-function bolt.route(routing)
+function bolt.route(routing, bookmarks, db)
+  routing.neotype = 'dictionary'
+  bookmarks.neotype = 'list'
+  
+  local packed = packer.pack(0x66, routing, bookmarks, db)
+  local err = connection.write(packed)
+  if err ~= nil then
+    return nil, err
+  end
+  
+  local msg
+  msg, err = connection.read()
+  if msg == nil then
+    return nil, err
+  end
+  
+  return processMessage(msg)
 end
 
 -- Set requested bolt versions

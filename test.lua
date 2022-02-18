@@ -1,3 +1,4 @@
+package.path = package.path .. ';./src/?.lua'
 local bolt = require('src.bolt')
 
 function bin2hex(...)
@@ -27,13 +28,13 @@ local function dump( t )
             sub_printTable( val, indent .. string.rep( " ", string.len(pos)+8 ) )
             print( indent .. string.rep( " ", string.len(pos)+6 ) .. "}" )
           elseif ( type(val) == "string" ) then
-            print( indent .. "[" .. pos .. '] => "' .. val .. '"' )
+            print( indent .. "[" .. pos .. '] => "' .. val .. '"', '(' .. type(val) .. ')' )
           else
-            print( indent .. "[" .. pos .. "] => " .. tostring(val) )
+            print( indent .. "[" .. pos .. "] => " .. tostring(val), '(' .. type(val) .. ')' )
           end
         end
       else
-        print( indent..tostring(t) )
+        print( indent..tostring(t), '(' .. type(t) .. ')' )
       end
     end
   end
@@ -49,18 +50,36 @@ end
 
 local response, err
 
-print()
-response, err = bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing', user_agent = 'bolt-lua'})
-if response == nil then
-  print(err)
-  os.exit()
-end
-dump(response)
+print('init')
+dump(bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing', user_agent = 'bolt-lua'}))
 
-print()
-response, err = bolt.query('RETURN $a as num, $s as str', {['a'] = 123, ['s'] = 'abc'})
-if response == nil then
-  print(err)
-  os.exit()
+print('basic types')
+local vars = {
+  ['int'] = 123, 
+  ['str'] = 'abc',
+  ['flo'] = 43.65464,
+  ['list'] = {['neotype'] = 'list', 34, 65},
+  ['dict'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2},
+  ['nul'] = nil,
+  ['btrue'] = true,
+  ['bfalse'] = false
+}
+local cypher = {}
+for k, v in pairs(vars) do
+  table.insert(cypher, '$' .. k .. ' AS ' .. k)
 end
-dump(response)
+dump(bolt.query('RETURN ' .. table.concat(cypher, ','), vars))
+
+print('reset')
+dump(bolt.reset())
+
+print('transaction')
+dump( bolt.begin() )
+
+print('run')
+dump( bolt.run('CREATE (a:Test { name: $name }) RETURN a AS node', {['name'] = 'Foo'}) )
+print('pull')
+dump( bolt.pull() )
+
+print('rollback')
+dump( bolt.rollback() )

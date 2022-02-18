@@ -2,7 +2,7 @@ local socket = require('socket')
 local ssl = require('ssl')
 
 local connection = {}
-connection.versions = { 4.4, 4.3, 3 }
+connection.versions = { 4.4, 4.3 }
 connection.ip = '127.0.0.1'
 connection.port = 7687
 
@@ -57,7 +57,7 @@ function connection.connect()
     return result, err
   end
 
-  conn:settimeout(3)
+  conn:settimeout(5)
   conn:setoption('keepalive', true)
 
   -- Handshake
@@ -113,6 +113,14 @@ function connection.read()
   
   --print('read', client:getstats())
   
+  local function receive(length)
+    local output = ''
+    while #output < length do
+      output = output .. client:receive(length - #output)
+    end
+    return output
+  end
+  
   local header, length, err
   local msg = ''
   while true do
@@ -126,12 +134,10 @@ function connection.read()
     end
     
     length, _ = string.unpack('>H', header)
-    --print('reading:', length)
-    msg = msg .. client:receive(length)
+    msg = msg .. receive(length)
   end
 
   return msg
-  -- todo chunking
 end
 
 function connection.close()
