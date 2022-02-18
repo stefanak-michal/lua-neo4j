@@ -1,5 +1,5 @@
 local unpacker = {}
-
+local structures = require('src.structures')
 local msg, offset
 
 function unpacker.unpack(message)
@@ -18,7 +18,7 @@ function next(length)
 end
 
 function u()
-  local marker = string.byte(next(1))
+  local marker, _ = string.unpack('>B', next(1))
   
   if marker == 0xC3 then
     return true
@@ -129,7 +129,7 @@ function unpackList(marker)
   
   local output = {}
   while table.len(output) < length do
-    output.insert(u())
+    table.insert(output, u())
   end
   
   return output
@@ -169,9 +169,20 @@ function unpackStructure(marker)
     return nil
   end
   
-  return string.byte(next(1)), u()
-  
-  --todo specific structures
+  local signature, _ = string.unpack('>B', next(1))
+  local structure = structures.bySignature(signature)
+  if structure ~= nil then
+    local output = {neotype = structure.neotype}
+    for k, v in pairs(structure) do
+      if k ~= 'neotype' and k ~= 'signature' then
+        local m, _ = string.unpack('>B', next(1))
+        output[k] = _G['unpack' .. v](m)
+      end
+    end
+    return output
+  else
+    return signature, u()
+  end
 end
 
 return unpacker

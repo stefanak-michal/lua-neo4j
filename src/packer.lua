@@ -1,5 +1,5 @@
 local packer = {}
-
+local structures = require('src.structures')
 local SMALL, MEDIUM, LARGE, HUGE = 16, 256, 65536, 4294967295
 
 function packer.pack(signature, ...)
@@ -39,12 +39,16 @@ function p(param)
   elseif type(param) == 'string' then
     return packString(param)
   elseif type(param) == 'table' then
-    if param.type == 'list' then
+    local neotype = param.neotype
+    param.neotype = nil
+    if neotype == 'list' then
       return packList(param)
-    elseif param.type == 'dictionary' then
+    elseif neotype == 'dictionary' then
       return packDictionary(param)
-    elseif param.type == 'structure' then
-      return packStructure(param)
+    elseif structures.byType(neotype) ~= nil then
+      return packStructure(neotype, param)
+    else
+      --error
     end
   elseif type(param) == 'boolean' and param == true then
     return string.char(0xC3)
@@ -94,7 +98,6 @@ function packString(param)
 end
 
 function packList(param)
-  param.type = nil
   local output
   local count = 0
   for _ in pairs(param) do count = count + 1 end
@@ -119,8 +122,6 @@ function packList(param)
 end
 
 function packDictionary(param)
-  param.type = nil
-    
   local output
   local count = 0
   for _ in pairs(param) do count = count + 1 end
@@ -144,9 +145,15 @@ function packDictionary(param)
   return output
 end
 
-function packStructure(param)
-  param.type = nil
-  --todo
+function packStructure(neotype, param)
+  local structure = structures.byType(neotype)
+  local output = string.pack('>B', 0xB0 | (table.len(structure) - 2)) .. string.char(structure.signature)
+  for k, v in pairs(structure) do
+    if k ~= 'signature' and k ~= 'neotype' then
+      output = output .. _G['pack' .. v](param[k])
+    end
+  end
+  return output
 end
 
 return packer
