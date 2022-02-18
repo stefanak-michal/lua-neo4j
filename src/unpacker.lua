@@ -1,27 +1,19 @@
-local unpacker = {}
+local fn = {}
 local structures = require('structures')
 local msg, offset
 
-function unpacker.unpack(message)
-  msg = message
-  offset = 1
-  
-  --print(msg)
-  
-  return u()
-end
-
-function next(length)
+function fn.next(length)
   length = length or 1
-  local output = string.sub(msg, offset, offset + length - 1)
-  --print(msg, ' ', offset, length, output, #output)
-  --print()
-  offset = offset + string.len(output)
+  local output = ''
+  for i = offset, offset + length - 1, 1 do
+    output = output .. string.char(msg[i])
+  end
+  offset = offset + length
   return output
 end
 
-function u()
-  local marker, _ = string.unpack('>B', next())
+function fn.u()
+  local marker = string.byte(fn.next())
   
   if marker == 0xC3 then
     return true
@@ -33,33 +25,33 @@ function u()
 
   local value
   
-  value = unpackInteger(marker)
+  value = fn.Integer(marker)
   if value ~= nil then
     return value
   end
   
-  value = unpackFloat(marker)
+  value = fn.Float(marker)
   if value ~= nil then
     return value
   end
   
-  value = unpackString(marker)
+  value = fn.String(marker)
   if value ~= nil then
     return value
   end
   
-  value = unpackList(marker)
+  value = fn.List(marker)
   if value ~= nil then
     return value
   end
   
-  value = unpackDictionary(marker)
+  value = fn.Dictionary(marker)
   if value ~= nil then
     return value
   end
   
   local signature
-  signature, value = unpackStructure(marker)
+  signature, value = fn.Structure(marker)
   if value ~= nil then
     return signature, value
   end
@@ -67,123 +59,137 @@ function u()
   return nil
 end
 
-function unpackInteger(marker)
-  if marker >> 7 == 0 then
+function fn.Integer(marker)
+  if marker > 0xF0 and marker < 0x7F then
     return marker
-  elseif marker >> 4 == 0xF0 then
-    local i, _ = string.unpack('>b', string.char(marker))
-    return math.tointeger(i)
   elseif marker == 0xC8 then
-    local i, _ = string.unpack('>b', next())
+    local i, _ = string.unpack('>b', fn.next())
     return math.tointeger(i)
   elseif marker == 0xC9 then
-    local i, _ = string.unpack('>h', next(2))
+    local i, _ = string.unpack('>h', fn.next(2))
     return math.tointeger(i)
   elseif marker == 0xCA then
-    local i, _ = string.unpack('>l', next(4))
+    local i, _ = string.unpack('>l', fn.next(4))
     return math.tointeger(i)
   elseif marker == 0xCB then
-    local i, _ = string.unpack('>i64', next(8))
+    local i, _ = string.unpack('>i64', fn.next(8))
     return math.tointeger(i)
   else
     return nil
   end
 end
 
-function unpackFloat(marker)
+function fn.Float(marker)
   if marker == 0xC1 then
-    local f, _ = string.unpack('>d', next(8))
+    local f, _ = string.unpack('>d', fn.next(8))
     return tonumber(f)
   else
     return nil
   end
 end
 
-function unpackString(marker)
+function fn.String(marker)
   local length
   if marker >> 4 == 0x8 then
-    length = marker - 0x80
+    length = 0x80 ~ marker
   elseif marker == 0xD0 then
-    length, _ = string.unpack('>B', next())
+    length, _ = string.unpack('>B', fn.next())
   elseif marker == 0xD1 then
-    length, _ = string.unpack('>H', next(2))
+    length, _ = string.unpack('>H', fn.next(2))
   elseif marker == 0xD2 then
-    length, _ = string.unpack('>L', next(4))
+    length, _ = string.unpack('>L', fn.next(4))
   else
     return nil
   end
-  
-  return next(length)
+  return fn.next(length)
 end
 
-function unpackList(marker)
+function fn.List(marker)
   local length
   if marker >> 4 == 0x9 then
-    length = marker - 0x90
+    length = 0x90 ~ marker
   elseif marker == 0xD4 then
-    length, _ = string.unpack('>B', next())
+    length, _ = string.unpack('>B', fn.next())
   elseif marker == 0xD5 then
-    length, _ = string.unpack('>H', next(2))
+    length, _ = string.unpack('>H', fn.next(2))
   elseif marker == 0xD6 then
-    length, _ = string.unpack('>L', next(4))
+    length, _ = string.unpack('>L', fn.next(4))
   else
     return nil
   end
   
   local output = {}
-  while table.len(output) < length do
-    table.insert(output, u())
+  if length > 0 then
+    local i
+    for i = 1, length, 1 do
+      table.insert(output, fn.u())
+    end
   end
   
   return output
 end
 
-function unpackDictionary(marker)
+function fn.Dictionary(marker)
   local length
   if marker >> 4 == 0xA then
-    length = marker - 0xA0
+    length = 0xA0 ~ marker
   elseif marker == 0xD8 then
-    length, _ = string.unpack('>B', next())
+    length, _ = string.unpack('>B', fn.next())
   elseif marker == 0xD9 then
-    length, _ = string.unpack('>H', next(2))
+    length, _ = string.unpack('>H', fn.next(2))
   elseif marker == 0xDA then
-    length, _ = string.unpack('>L', next(4))
+    length, _ = string.unpack('>L', fn.next(4))
   else
     return nil
   end
   
   local output = {}
-  while table.len(output) < length do
-    output[u()] = u()
+  if length > 0 then
+    local i = 0
+    for i = 1, length, 1 do
+      output[fn.u()] = fn.u()
+    end
   end
   
   return output
 end
 
-function unpackStructure(marker)
+function fn.Structure(marker)
   local size
   if marker >> 4 == 0xB then
-    size = marker - 0xB0
+    size = 0xB0 ~ marker
   elseif marker == 0xDC then
-    size, _ = string.unpack('>B', next())
+    size, _ = string.unpack('>B', fn.next())
   elseif marker == 0xDD then
-    size, _ = string.unpack('>H', next(2))
+    size, _ = string.unpack('>H', fn.next(2))
   else
     return nil
   end
   
-  local signature, _ = string.unpack('>B', next())
+  local signature, _ = string.unpack('>B', fn.next())
   local structure = structures.bySignature(signature)
   if structure ~= nil then
     local output = {['neotype'] = structure.neotype}
     for i = 1, #structure.keys, 1 do
-      local m, _ = string.unpack('>B', next())
-      output[structure.keys[i]] = _G['unpack' .. structure.types[i]](m)
+      local m, _ = string.unpack('>B', fn.next())
+      output[structure.keys[i]] = fn[structure.types[i]](m)
     end
     return output
   else
-    return signature, u()
+    return signature, fn.u()
   end
+end
+
+
+local unpacker = {}
+
+function unpacker.unpack(message)
+  msg = {}
+  for b in string.gmatch(message, '.') do
+    table.insert(msg, string.byte(b))
+  end
+  offset = 1
+  return fn.u()
 end
 
 return unpacker

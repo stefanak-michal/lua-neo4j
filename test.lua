@@ -4,10 +4,14 @@ local bolt = require('src.bolt')
 function bin2hex(...)
   local output = ''
   for i, v in ipairs({...}) do 
-    --print(i, v, utf8.codes(v))
-
+    local k = 1
     for b in string.gmatch(v, '.') do
       output = output .. string.format("%02x ", string.byte(b))
+      
+      if k % 4 == 0 then
+        output = output .. '  '
+      end
+      k = k + 1
     end
   end
   return output
@@ -83,3 +87,5 @@ dump( bolt.pull() )
 
 print('rollback')
 dump( bolt.rollback() )
+
+

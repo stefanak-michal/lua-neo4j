@@ -8,7 +8,7 @@ connection.port = 7687
 
 local client = nil
 
-function packVersions()
+local function packVersions()
   local output = {}
   while #connection.versions < 4 do
     table.insert(connection.versions, 0)
@@ -26,7 +26,7 @@ function packVersions()
   return table.concat(output, '')
 end
 
-function unpackVersion(msg)
+local function unpackVersion(msg)
   local output = {}
   for b in string.gmatch(msg, '.') do
     b, _ = string.unpack('>B', b)
