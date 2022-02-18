@@ -1,105 +1,91 @@
-local socket = require("socket")
-local ssl = require("ssl")
-
-versions = {5}
-
-function hex2bin(str)
-  return (string.gsub(str, '..', function (cc)
-    return string.char(tonumber(cc, 16))
-  end))
-end
+package.path = package.path .. ';./src/?.lua'
+local bolt = require('src.bolt')
 
 function bin2hex(...)
   local output = ''
   for i, v in ipairs({...}) do 
-    --print(i, v, utf8.codes(v))
-
-    for j, b in utf8.codes(v) do
-      output = output .. string.format("%02x ", b)
+    local k = 1
+    for b in string.gmatch(v, '.') do
+      output = output .. string.format("%02x ", string.byte(b))
+      
+      if k % 4 == 0 then
+        output = output .. '  '
+      end
+      k = k + 1
     end
   end
   return output
 end
 
-function packVersion()
-  local output = ''
-  while #versions < 4 do
-    table.insert(versions, 0)
-  end
-  
-  for i, v in ipairs(versions) do
-    v = string.gsub(tostring(v), '%.', '')
-    v = string.reverse(tostring(v))
-    v = string.format('%04d', v)
-    for r in string.gmatch(v, '[0-9]') do
-      output = output .. string.pack('B', r)
+local function dump( t )
+  local printTable_cache = {}
+
+  local function sub_printTable( t, indent )
+    if ( printTable_cache[tostring(t)] ) then
+      print( indent .. "*" .. tostring(t) )
+    else
+      printTable_cache[tostring(t)] = true
+      if ( type( t ) == "table" ) then
+        for pos,val in pairs( t ) do
+          if ( type(val) == "table" ) then
+            print( indent .. "[" .. pos .. "] => " .. tostring( t ).. " {" )
+            sub_printTable( val, indent .. string.rep( " ", string.len(pos)+8 ) )
+            print( indent .. string.rep( " ", string.len(pos)+6 ) .. "}" )
+          elseif ( type(val) == "string" ) then
+            print( indent .. "[" .. pos .. '] => "' .. val .. '"', '(' .. type(val) .. ')' )
+          else
+            print( indent .. "[" .. pos .. "] => " .. tostring(val), '(' .. type(val) .. ')' )
+          end
+        end
+      else
+        print( indent..tostring(t), '(' .. type(t) .. ')' )
+      end
     end
   end
-  
-  return output
-end
 
-function unpackVersion(msg)
-  local output = {}
-  for b in string.gmatch(msg, '.') do
-    b, _ = string.unpack('B', b)
-    table.insert(output, b)
+  if ( type(t) == "table" ) then
+    print( tostring(t) .. " {" )
+    sub_printTable( t, "  " )
+    print( "}" )
+  else
+    sub_printTable( t, "  " )
   end
-  
-  while output[1] == 0 do
-    table.remove(output, 1)
-  end
-  
-  return string.reverse(table.concat(output, '.'))
 end
 
---test = packVersion()
---print(bin2hex(test))
---os.exit()
+local response, err
 
-conn, err = socket.tcp()
-if conn == nil then
-  print(err)
-  os.exit()
+print('init')
+dump(bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing', user_agent = 'bolt-lua'}))
+
+print('basic types')
+local vars = {
+  ['int'] = 123, 
+  ['str'] = 'abc',
+  ['flo'] = 43.65464,
+  ['list'] = {['neotype'] = 'list', 34, 65},
+  ['dict'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2},
+  ['nul'] = nil,
+  ['btrue'] = true,
+  ['bfalse'] = false
+}
+local cypher = {}
+for k, v in pairs(vars) do
+  table.insert(cypher, '$' .. k .. ' AS ' .. k)
 end
+dump(bolt.query('RETURN ' .. table.concat(cypher, ','), vars))
 
-result, err = conn:connect("127.0.0.1", 7687)
-if result == nil then
-  print(err)
-  os.exit()
-end
-  
-print('Connected to: ' .. conn:getsockname())
+print('reset')
+dump(bolt.reset())
 
---client, err = socket.connect('127.0.0.1', 7687)
-conn:settimeout(1)
-conn:setoption('keepalive', true)
+print('transaction')
+dump( bolt.begin() )
+
+print('run')
+dump( bolt.run('CREATE (a:Test { name: $name }) RETURN a AS node', {['name'] = 'Foo'}) )
+print('pull')
+dump( bolt.pull() )
+
+print('rollback')
+dump( bolt.rollback() )
 
 
-print('Handshake')
-sended, err = conn:send(string.char(0x60, 0x60, 0xB0, 0x17))
-if sended == nil then
-  print(err)
-  os.exit()
-end
---print(conn:getstats())
-
-print('Version request')
-sended, err = conn:send(packVersion())
-if sended == nil then
-  print(err)
-  os.exit()
-end
---print(conn:getstats())
-
-msg, err = conn:receive(4)
---print(conn:getstats())
-if msg == nil then
-  print(err)
-  os.exit()
-end
-
-version = unpackVersion(msg)
-print('Responded version: ' .. version)
-
-conn:close()
