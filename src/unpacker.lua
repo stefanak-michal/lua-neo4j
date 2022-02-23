@@ -1,7 +1,11 @@
-local fn = {}
-local structures = require('structures')
-local msg, offset
+-- https://7687.org/packstream/packstream-specification-1.html
 
+local fn = {} -- Contains private functions for unpacking
+local unpacker = {}
+local structures = require('structures')
+local msg, offset -- Stored message as table of bytes
+
+-- Get next bytes from message
 function fn.next(length)
   length = length or 1
   local output = ''
@@ -50,10 +54,10 @@ function fn.u()
     return value
   end
   
-  local signature
-  signature, value = fn.Structure(marker)
+  --local signature
+  value = fn.Structure(marker)
   if value ~= nil then
-    return signature, value
+    return value
   end
   
   return nil
@@ -176,13 +180,13 @@ function fn.Structure(marker)
     end
     return output
   else
-    return signature, fn.u()
+    unpacker.signature = signature
+    return fn.u()
   end
 end
 
 
-local unpacker = {}
-
+-- Public method to unpack message
 function unpacker.unpack(message)
   msg = {}
   for b in string.gmatch(message, '.') do

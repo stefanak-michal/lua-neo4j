@@ -5,16 +5,16 @@ local packer = require('packer')
 local unpacker = require('unpacker')
 
 local function processMessage(msg)
-  local signature, response = unpacker.unpack(msg)
-  if signature == 0x70 then
+  local response = unpacker.unpack(msg)
+  if unpacker.signature == 0x70 then
     return response
-  elseif signature == 0x7F then
+  elseif unpacker.signature == 0x7F then
     if response == nil then
       return nil, 'Failed'
     else
       return nil, '[' .. response.code .. '] ' .. response.message
     end
-  elseif signature == 0x7E then
+  elseif unpacker.signature == 0x7E then
     return nil, 'Ignored'
   else
     return nil, 'Unknown error'
@@ -115,24 +115,24 @@ function bolt.pull(extra)
   end
   
   local output = {}
-  local signature, response, msg
+  local response, msg
   repeat
     msg, err = connection.read()
     if msg == nil then
       return nil, err
     end
     
-    signature, response = unpacker.unpack(msg)
-    if signature == 0x70 or signature == 0x71 then
+    response = unpacker.unpack(msg)
+    if unpacker.signature == 0x70 or unpacker.signature == 0x71 then
       table.insert(output, response)
-    elseif signature == 0x7F then
+    elseif unpacker.signature == 0x7F then
       return nil, '[' .. response.code .. '] ' .. response.message
-    elseif signature == 0x7E then
+    elseif unpacker.signature == 0x7E then
       return nil, 'Ignored'
     else
       return nil, 'Unknown error'
     end
-  until signature == 0x70
+  until unpacker.signature == 0x70
   
   return output
 end

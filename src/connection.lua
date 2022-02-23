@@ -91,17 +91,18 @@ function connection.write(data)
   if client == nil or client:getpeername() == nil then
     return 'Not connected'
   end
-
-  --print( tostring( string.pack('>H', string.len(data)) .. data .. string.char(0x00) .. string.char(0x00) )
-  local sended, err = client:send(string.pack('>H', string.len(data)) .. data .. string.char(0x00) .. string.char(0x00))
-  if sended == nil then
-    return err
+  
+  local sended = 1
+  local err
+  while sended < #data do
+    local chunk = string.sub(data, 1, 65535)
+    sended, err = client:send(string.pack('>H', string.len(chunk)) .. data)
+    if err ~= nil then
+      return err
+    end
   end
   
-  --print('sended:', sended)
-  --print(client:getstats())
-    
-  -- todo chunking
+  client:send(string.char(0x00) .. string.char(0x00))
 
   return nil
 end
@@ -110,8 +111,6 @@ function connection.read()
   if client == nil or client:getpeername() == nil then
     return nil, 'Not connected'
   end
-  
-  --print('read', client:getstats())
   
   local function receive(length)
     local output = ''

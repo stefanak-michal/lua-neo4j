@@ -17,7 +17,7 @@ function bin2hex(...)
   return output
 end
 
-local function dump( t )
+function dump( t )
   local printTable_cache = {}
 
   local function sub_printTable( t, indent )

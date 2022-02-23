@@ -1,4 +1,7 @@
-local fn = {}
+-- https://7687.org/packstream/packstream-specification-1.html
+
+local fn = {} -- Contains private functions for packing
+local packer = {}
 local structures = require('structures')
 local SMALL, MEDIUM, LARGE, HUGE = 16, 256, 65536, 4294967295
 
@@ -132,8 +135,7 @@ function fn.Structure(neotype, param)
 end
 
 
-local packer = {}
-
+-- Public method to pack message
 function packer.pack(signature, ...)
   local params = {...}
   local output
