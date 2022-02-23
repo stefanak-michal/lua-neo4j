@@ -44,6 +44,19 @@ local result, err = bolt.query('RETURN 1 as num, $str as str', {str = 'Hello'})
 
 _Check official [documentation](https://7687.org/bolt/bolt-protocol-message-specification-4.html) for more informations._
 
+### Table - List and Dictionary
+
+Neo4j support two array data types which are not available in Lua. Lua has only **table** type. You have to specify type with key **neotype** in your table. Available types are **list**, **dictionary** and Neo4j [structures](https://github.com/stefanak-michal/lua-neo4j/blob/master/src/structures.lua).
+
+```lua
+local result, err = bolt.query('RETURN $list AS list', {
+  ['list'] = {['neotype'] = 'list', 34, 65}
+})
+local result, err = bolt.query('RETURN $list AS list', {
+  ['list'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2}
+})
+```
+
 ## What is missing
 
 - Tests coverage
