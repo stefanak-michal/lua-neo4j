@@ -54,8 +54,9 @@ Neo4j support two array data types which are not available in Lua. Lua has only 
 local result, err = bolt.query('RETURN $list AS list', {
   ['list'] = {['neotype'] = 'list', 34, 65}
 })
-local result, err = bolt.query('RETURN $list AS list', {
-  ['list'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2}
+-- OR
+local result, err = bolt.query('RETURN $dict AS dict', {
+  ['dict'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2}
 })
 ```
 
