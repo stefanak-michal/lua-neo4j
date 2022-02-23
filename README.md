@@ -22,6 +22,8 @@ bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'password'})
 local result, err = bolt.query('RETURN 1 as num, $str as str', {str = 'Hello'})
 ```
 
+_More options for Luasec (setSSL) described [here](https://github.com/brunoos/luasec/wiki/LuaSec-1.0.x#ssl_newcontext)._
+
 ## Methods
 
 | Name | Description | Arguments |
