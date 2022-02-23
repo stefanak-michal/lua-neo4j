@@ -1,10 +1,10 @@
 local socket = require('socket')
-local ssl = require('ssl')
 
 local connection = {}
 connection.versions = { 4.4, 4.3 }
 connection.ip = '127.0.0.1'
 connection.port = 7687
+connection.secure = nil
 
 local client = nil
 
@@ -50,15 +50,32 @@ function connection.connect()
     return conn, err
   end
 
-  -- add ssl if required https://github.com/brunoos/luasec/wiki
-
   result, err = conn:connect(connection.ip, connection.port)
   if result == nil then
     return result, err
   end
-
+  
   conn:settimeout(5)
   conn:setoption('keepalive', true)
+  
+  -- SSL if required https://github.com/brunoos/luasec/wiki
+  if connection.secure ~= nil then
+    local ssl = require('ssl')
+    
+    conn, err = ssl.wrap(conn, connection.secure)
+    if err ~= nil then
+      return nil, err
+    end
+    
+    if connection.secure.dane then
+      conn:setdane(connection.ip)
+    end
+    
+    result, err = conn:dohandshake()
+    if err ~= nil then
+      return nil, err
+    end
+  end
 
   -- Handshake
   sended, err = conn:send(string.char(0x60, 0x60, 0xB0, 0x17))
@@ -87,8 +104,10 @@ function connection.connect()
   end
 end
 
+-- Write to connection
+-- Returns nil on success otherwise it's error
 function connection.write(data)
-  if client == nil or client:getpeername() == nil then
+  if client == nil then
     return 'Not connected'
   end
   
@@ -107,8 +126,9 @@ function connection.write(data)
   return nil
 end
 
+-- Read next message from connection
 function connection.read()
-  if client == nil or client:getpeername() == nil then
+  if client == nil then
     return nil, 'Not connected'
   end
   
@@ -139,9 +159,11 @@ function connection.read()
   return msg
 end
 
+-- Close connection
 function connection.close()
-  if client ~= nil and client:getpeername() ~= nil then
+  if client ~= nil then
     client:close()
+    client = nil
   end
 end
 

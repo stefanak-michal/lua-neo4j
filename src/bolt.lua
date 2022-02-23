@@ -30,6 +30,9 @@ function bolt.init(auth)
   if auth.routing ~= nil then
     auth.routing.neotype = 'dictionary'
   end
+  if auth.user_agent == nil then
+    auth.user_agent = 'bolt-lua'
+  end
   
   local packed = packer.pack(0x01, auth)
   local err = connection.write(packed)
@@ -138,8 +141,15 @@ function bolt.pull(extra)
 end
 
 -- Discard waiting records (for pull) from last executed query
-function bolt.discard()
-  local extra = {['neotype'] = 'dictionary', ['n'] = -1}
+function bolt.discard(extra)
+  if extra == nil then
+    extra = {}
+  end
+  if extra.n == nil then
+    extra.n = -1
+  end
+  extra.neotype = 'dictionary'
+  
   local packed = packer.pack(0x2F, extra)
   local err = connection.write(packed)
   if err ~= nil then
@@ -252,9 +262,19 @@ function bolt.setVersions(...)
 end
 
 -- Set host for connection
-function bolt.setHost(ip, port)
+function bolt.setHost(ip)
   connection.ip = ip or '127.0.0.1'
+end
+
+-- Set port for connection
+function bolt.setPort(port)
   connection.port = port or 7687
+end
+
+-- Set SSL config for connection
+-- https://github.com/brunoos/luasec/wiki/LuaSec-1.0.x#ssl_newcontext
+function bolt.setSSL(params)
+  connection.secure = params
 end
 
 return bolt

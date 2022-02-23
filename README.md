@@ -2,18 +2,50 @@
 
 Unofficial library for communication with Neo4j database over bolt tcp protocol.
 
-WIP
+## Usage
 
-## What works
+```lua
+local bolt = require('bolt')
+bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'neo4j'})
+local result, err = bolt.query('RETURN 1 as num, $str as str', {str = 'Hello'})
+```
 
-- Communication with db over bolt
-- Packing and unpacking messages
-- Actions: init, run, pull, discard, reset, begin, commit, rollback 
+_Check test.lua for more examples._
+
+### Aura
+
+```lua
+local bolt = require('bolt')
+bolt.setHost('abcxyz.databases.neo4j.io') -- without neo4j+s://
+bolt.setSSL({mode = 'client', protocol = 'any', verify = 'none', dane = true})
+bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'password'})
+local result, err = bolt.query('RETURN 1 as num, $str as str', {str = 'Hello'})
+```
+
+## Methods
+
+| Name | Description | Arguments |
+|:---:|:---:|:---:|
+| setHost | Set hostname for connection. | string ip = 127.0.0.1 |
+| setPort | Set port for connection. | int port = 7687 |
+| setSSL | set configuration for secure connection. | table params = nil |
+| setVersions | Set requested bolt versions. | number/string ... = 4.4, 4.3 |
+| | | |
+| init | Connect to database with credentials. | table auth [info](https://7687.org/bolt/bolt-protocol-message-specification-4.html#request-message---44---hello) |
+| query | Execute query and get records with associated keys. Shortcut for run and pull. | string cypher, table params, table extra |
+| run | Execute query and get meta informations. | string cypher, table params, table extra |
+| pull | Pull records from last run. Last record is meta informations. | table extra = {n = -1} |
+| discard | Discard records from last run. | table extra = {n = -1} |
+| begin | Begin transaction. | table extra = {} |
+| commit | Commit transaction. | |
+| rollback | Rollback transaction. | |
+| reset | Reset connection to initial state. | |
+| route | Send route message. | table routing, table bookmarks, string db |
+
+_Check official [documentation](https://7687.org/bolt/bolt-protocol-message-specification-4.html) for more informations._
 
 ## What is missing
 
-- Chunking messages for send
-- SSL
 - Tests coverage
 
 ## Requires

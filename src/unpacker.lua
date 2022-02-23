@@ -64,7 +64,7 @@ function fn.u()
 end
 
 function fn.Integer(marker)
-  if marker > 0xF0 and marker < 0x7F then
+  if marker >= -16 and marker <= 127 then
     return marker
   elseif marker == 0xC8 then
     local i, _ = string.unpack('>b', fn.next())

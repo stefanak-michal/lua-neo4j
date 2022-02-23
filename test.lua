@@ -55,7 +55,7 @@ end
 local response, err
 
 print('init')
-dump(bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing', user_agent = 'bolt-lua'}))
+dump(bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing'}))
 
 print('basic types')
 local vars = {
@@ -87,5 +87,3 @@ dump( bolt.pull() )
 
 print('rollback')
 dump( bolt.rollback() )
-
-
