@@ -29,7 +29,6 @@ describe('Main', function()
 
 
   it('init #init', function()
-    bolt.setHost('host.docker.internal')
     local meta, err = bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing'})
     assert.is.truthy(meta, err)
     bolt.setTimeout(nil) -- we have some heavy tests and after init success set infinite timeout
