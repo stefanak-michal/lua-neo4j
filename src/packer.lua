@@ -17,14 +17,14 @@ function fn.p(param)
   elseif type(param) == 'string' then
     return fn.String(param)
   elseif type(param) == 'table' then
-    local neotype = param.neotype
-    param.neotype = nil
-    if neotype == 'list' then
+    if param.neotype == 'null' then
+      return string.char(0xC0)
+    elseif param.neotype == 'list' then
       return fn.List(param)
-    elseif neotype == 'dictionary' then
+    elseif param.neotype == 'dictionary' then
       return fn.Dictionary(param)
-    elseif structures.byType(neotype) ~= nil then
-      return fn.Structure(neotype, param)
+    elseif structures.byType(param.neotype) ~= nil then
+      return fn.Structure(param.neotype, param)
     else
       --error
     end
@@ -32,8 +32,8 @@ function fn.p(param)
     return string.char(0xC3)
   elseif type(param) == 'boolean' and param == false then
     return string.char(0xC2)
-  elseif param == nil then
-    return string.char(0xC0)
+  --elseif param == nil then
+    --return string.char(0xC0)
   else
     --error
   end
@@ -41,17 +41,17 @@ end
 
 function fn.Integer(param)
   if param >= 0 and param <= 127 then
-    return string.pack('>B', param)
+    return string.pack('>I1', param)
   elseif param >= -16 and param < 0 then
-    return string.pack('>b', 0xF0 | param)
+    return string.pack('>i1', 0xF0 | param)
   elseif param >= -128 and param <= -17 then
-    return string.char(0xC8) .. string.pack('>b', param)
+    return string.char(0xC8) .. string.pack('>i1', param)
   elseif ((param >= 128 and param <= 32767) or (param >= -32768 and param <= -129)) then
-    return string.char(0xC9) .. string.pack('>h', param)
+    return string.char(0xC9) .. string.pack('>i2', param)
   elseif ((param >= 32768 and param <= 2147483647) or (param >= -2147483648 and param <= -32769)) then
-    return string.char(0xCA) .. string.pack('>l', param)
+    return string.char(0xCA) .. string.pack('>i4', param)
   elseif ((param >= 2147483648 and param <= 9223372036854775807) or (param >= -9223372036854775808 and param <= -2147483649)) then
-    return string.char(0xCB) .. string.pack('>i64', param)
+    return string.char(0xCB) .. string.pack('>i8', param)
   else
     --error
   end
@@ -63,13 +63,13 @@ end
 
 function fn.String(param)
   if #param < SMALL then
-    return string.pack('B', 0x80 | #param) .. param
+    return string.pack('>I1', 0x80 | #param) .. param
   elseif #param < MEDIUM then
-    return string.char(0xD0) .. string.pack('>B', #param) .. param
+    return string.char(0xD0) .. string.pack('>I1', #param) .. param
   elseif #param < LARGE then
-    return string.char(0xD1) .. string.pack('>H', #param) .. param
+    return string.char(0xD1) .. string.pack('>I2', #param) .. param
   elseif #param < HUGE then
-    return string.char(0xD2) .. string.pack('>L', #param) . param
+    return string.char(0xD2) .. string.pack('>I4', #param) .. param
   else
     --error
   end
@@ -77,23 +77,26 @@ end
 
 function fn.List(param)
   local output
-  local count = 0
-  for _ in pairs(param) do count = count + 1 end
+  local count = #param
+  --for _ in pairs(param) do count = count + 1 end
+  --count = count - 1
 
   if count < SMALL then
-    output = string.pack('>B', 0x90 | count)
+    output = string.pack('>I1', 0x90 | count)
   elseif count < MEDIUM then
-    output = string.char(0xD4) .. string.pack('>B', count)
+    output = string.char(0xD4) .. string.pack('>I1', count)
   elseif count < LARGE then
-    output = string.char(0xD5) .. string.pack('>H', count)
+    output = string.char(0xD5) .. string.pack('>I2', count)
   elseif count < HUGE then
-    output = string.char(0xD6) .. string.pack('>L', count)
+    output = string.char(0xD6) .. string.pack('>I4', count)
   else
     --error
   end
 
-  for i, v in ipairs(param) do
-    output = output .. fn.p(v)
+  for k, v in pairs(param) do
+    if k ~= 'neotype' then
+      output = output .. fn.p(v)
+    end
   end
 
   return output
@@ -103,21 +106,24 @@ function fn.Dictionary(param)
   local output
   local count = 0
   for _ in pairs(param) do count = count + 1 end
+  count = count - 1
 
   if count < SMALL then
-    output = string.pack('>B', 0xA0 | count)
+    output = string.pack('>I1', 0xA0 | count)
   elseif count < MEDIUM then
-    output = string.char(0xD8) .. string.pack('>B', count)
+    output = string.char(0xD8) .. string.pack('>I1', count)
   elseif count < LARGE then
-    output = string.char(0xD9) .. string.pack('>H', count)
+    output = string.char(0xD9) .. string.pack('>I2', count)
   elseif count < HUGE then
-    output = string.char(0xDA) .. string.pack('>L', count)
+    output = string.char(0xDA) .. string.pack('>I4', count)
   else
     --error
   end
 
   for k, v in pairs(param) do
-    output = output .. fn.p(tostring(k)) .. fn.p(v)
+    if k ~= 'neotype' then
+      output = output .. fn.p(tostring(k)) .. fn.p(v)
+    end
   end
 
   return output
@@ -125,11 +131,9 @@ end
 
 function fn.Structure(neotype, param)
   local structure = structures.byType(neotype)
-  local output = string.pack('>B', 0xB0 | #structure.keys) .. string.char(structure.signature)
-  for k, v in pairs(structure) do
-    for i = 1, #structure.keys, 1 do
-      output = output .. fn[structure.types[i]](param[structure.keys[i]])
-    end
+  local output = string.pack('>I1', 0xB0 | #structure.keys) .. string.char(structure.signature)
+  for i = 1, #structure.keys, 1 do
+    output = output .. fn[structure.types[i]](param[structure.keys[i]])
   end
   return output
 end
@@ -143,18 +147,18 @@ function packer.pack(signature, ...)
   for _ in pairs(params) do count = count + 1 end
 
   if count < SMALL then
-    output = string.pack('>B', 0xB0 | count)
+    output = string.pack('>I1', 0xB0 | count)
   elseif count < MEDIUM then
-    output = string.char(0xDC) .. string.pack('>B', count)
+    output = string.char(0xDC) .. string.pack('>I1', count)
   elseif count < LARGE then
-    output = string.char(0xDD) .. string.pack('>H', count)
+    output = string.char(0xDD) .. string.pack('>I2', count)
   else
     return nil, 'Too many parameters'
   end
 
   output = output .. string.char(signature)
   
-  for i, v in ipairs(params) do
+  for _, v in ipairs(params) do
     output = output .. fn.p(v)
   end
 

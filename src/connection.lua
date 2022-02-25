@@ -1,10 +1,12 @@
 local socket = require('socket')
 
-local connection = {}
-connection.versions = { 4.4, 4.3 }
-connection.ip = '127.0.0.1'
-connection.port = 7687
-connection.secure = nil
+local connection = {
+  versions = { 4.4, 4.3 },
+  ip = '127.0.0.1',
+  port = 7687,
+  secure = nil,
+  timeout = 15
+}
 
 local client = nil
 
@@ -14,7 +16,7 @@ local function packVersions()
     table.insert(connection.versions, 0)
   end
 
-  for i, v in ipairs(connection.versions) do
+  for _, v in ipairs(connection.versions) do
     v = string.gsub(tostring(v), '%.', '')
     v = string.reverse(tostring(v))
     v = string.format('%04d', v)
@@ -29,7 +31,7 @@ end
 local function unpackVersion(msg)
   local output = {}
   for b in string.gmatch(msg, '.') do
-    b, _ = string.unpack('>B', b)
+    b = string.unpack('>B', b)
     table.insert(output, b)
   end
 
@@ -38,6 +40,22 @@ local function unpackVersion(msg)
   end
 
   return string.reverse(table.concat(output, '.'))
+end
+
+local function bin2hex(...)
+  local output = ''
+  for i, v in ipairs({...}) do 
+    local k = 1
+    for b in string.gmatch(v, '.') do
+      output = output .. string.format("%02x ", string.byte(b))
+      
+      if k % 4 == 0 then
+        output = output .. '  '
+      end
+      k = k + 1
+    end
+  end
+  return output
 end
 
 function connection.connect()
@@ -55,7 +73,7 @@ function connection.connect()
     return result, err
   end
   
-  conn:settimeout(5)
+  conn:settimeout(connection.timeout)
   conn:setoption('keepalive', true)
   
   -- SSL if required https://github.com/brunoos/luasec/wiki
@@ -111,16 +129,48 @@ function connection.write(data)
     return 'Not connected'
   end
   
-  local sended = 1
-  local err
-  while sended < #data do
-    local chunk = string.sub(data, 1, 65535)
-    sended, err = client:send(string.pack('>H', string.len(chunk)) .. data)
+  --local sended = 0
+  --local err
+  local offset = 1
+  
+  --print('data len', #data, bin2hex(data))
+  repeat
+    local chunk = string.sub(data, offset, offset + 65535 - 1)
+    --print('chunk len', #chunk)
+    chunk = string.pack('>I2', #chunk) .. chunk
+    if BOLT_DEBUG then
+      print('C: ' .. bin2hex(chunk))
+    end
+    
+    local sended, err = client:send(chunk)
+    --print('result', sended, err)
     if err ~= nil then
       return err
     end
-  end
+    -- substract chunk length
+    offset = offset + sended - 2
+    --print('finish', offset, #data)
+  until offset >= #data
   
+  --[[print('data len', #data)
+  while sended < #data do
+    print('sended start', sended)
+    local chunk = string.sub(data, sended, sended + 65534)
+    print('chunk len', #chunk)
+    data = string.pack('>I2', #chunk) .. data
+    if BOLT_DEBUG then
+      print('C: ' .. bin2hex(data))
+    end
+    sended, err = client:send(data)
+    print('result', sended, err)
+    if err ~= nil then
+      return err
+    end
+  end]]
+  
+  if BOLT_DEBUG then
+    print('C: 00 00')
+  end
   client:send(string.char(0x00) .. string.char(0x00))
 
   return nil
@@ -152,10 +202,13 @@ function connection.read()
       break
     end
     
-    length, _ = string.unpack('>H', header)
+    length = string.unpack('>I2', header)
     msg = msg .. receive(length)
   end
 
+  if BOLT_DEBUG then
+    print('S: ' .. bin2hex(msg))
+  end
   return msg
 end
 
@@ -164,6 +217,14 @@ function connection.close()
   if client ~= nil then
     client:close()
     client = nil
+  end
+end
+
+-- Set timeout for existing and new connection
+function connection.setTimeout(timeout)
+  connection.timeout = timeout
+  if client ~= nil then
+    client:settimeout(timeout)
   end
 end
 

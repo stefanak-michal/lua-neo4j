@@ -4,6 +4,37 @@ local connection = require('connection')
 local packer = require('packer')
 local unpacker = require('unpacker')
 
+local function clone (t) -- deep-copy a table
+    if type(t) ~= "table" then return t end
+    local meta = getmetatable(t)
+    local target = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            target[k] = clone(v)
+        else
+            target[k] = v
+        end
+    end
+    setmetatable(target, meta)
+    return target
+end
+
+function bolt.list(t)
+  local new = clone(t)
+  new.neotype = 'list'
+  return new
+end
+
+function bolt.dictionary(t)
+  local new = clone(t)
+  new.neotype = 'dictionary'
+  return new
+end
+
+function bolt.null()
+  return {['neotype'] = 'null'}
+end
+
 local function processMessage(msg)
   local response = unpacker.unpack(msg)
   if unpacker.signature == 0x70 then
@@ -25,7 +56,7 @@ end
 -- Connect and login to database
 function bolt.init(auth)
   bolt.version = connection.connect()
-  
+
   auth.neotype = 'dictionary'
   if auth.routing ~= nil then
     auth.routing.neotype = 'dictionary'
@@ -33,36 +64,36 @@ function bolt.init(auth)
   if auth.user_agent == nil then
     auth.user_agent = 'bolt-lua'
   end
-  
+
   local packed = packer.pack(0x01, auth)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
 -- Shortcut for run and pull, returns rows with associated field keys
 function bolt.query(cypher, params, extra)
-  local meta, rows, stats, err
-  
+  local meta, rows, err
+
   meta, err = bolt.run(cypher, params, extra)
   if meta == nil then
     return nil, err
   end
-  
+
   rows, err = bolt.pull()
   if rows == nil then
     return nil, err
   end
-  
+
   local output = {}
   if #rows > 1 then
     table.remove(rows)
@@ -71,11 +102,11 @@ function bolt.query(cypher, params, extra)
       for i, value in pairs(r) do
         row[meta.fields[i]] = value
       end
-    
+
       table.insert(output, row)
     end
   end
-  
+
   return output
 end
 
@@ -85,19 +116,19 @@ function bolt.run(cypher, params, extra)
   params.neotype = 'dictionary'
   extra = extra or {}
   extra.neotype = 'dictionary'
-  
+
   local packed = packer.pack(0x10, cypher, params, extra)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -110,13 +141,13 @@ function bolt.pull(extra)
     extra.n = -1
   end
   extra.neotype = 'dictionary'
-  
+
   local packed = packer.pack(0x3F, extra)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local output = {}
   local response, msg
   repeat
@@ -124,9 +155,15 @@ function bolt.pull(extra)
     if msg == nil then
       return nil, err
     end
-    
+
     response = unpacker.unpack(msg)
     if unpacker.signature == 0x70 or unpacker.signature == 0x71 then
+      -- clean up neotype null
+      for k, v in pairs(response) do
+        if type(v) == 'table' and v.neotype == 'null' then
+          response[k] = nil
+        end
+      end
       table.insert(output, response)
     elseif unpacker.signature == 0x7F then
       return nil, '[' .. response.code .. '] ' .. response.message
@@ -136,7 +173,7 @@ function bolt.pull(extra)
       return nil, 'Unknown error'
     end
   until unpacker.signature == 0x70
-  
+
   return output
 end
 
@@ -149,19 +186,19 @@ function bolt.discard(extra)
     extra.n = -1
   end
   extra.neotype = 'dictionary'
-  
+
   local packed = packer.pack(0x2F, extra)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -169,19 +206,19 @@ end
 function bolt.begin(extra)
   extra = extra or {}
   extra.neotype = 'dictionary'
-  
+
   local packed = packer.pack(0x11, extra)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -192,13 +229,13 @@ function bolt.commit()
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -209,13 +246,13 @@ function bolt.rollback()
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -226,13 +263,13 @@ function bolt.reset()
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -240,19 +277,19 @@ end
 function bolt.route(routing, bookmarks, db)
   routing.neotype = 'dictionary'
   bookmarks.neotype = 'list'
-  
+
   local packed = packer.pack(0x66, routing, bookmarks, db)
   local err = connection.write(packed)
   if err ~= nil then
     return nil, err
   end
-  
+
   local msg
   msg, err = connection.read()
   if msg == nil then
     return nil, err
   end
-  
+
   return processMessage(msg)
 end
 
@@ -275,6 +312,11 @@ end
 -- https://github.com/brunoos/luasec/wiki/LuaSec-1.0.x#ssl_newcontext
 function bolt.setSSL(params)
   connection.secure = params
+end
+
+-- Set timeout for connection ..default 15 seconds
+function bolt.setTimeout(timeout)
+  connection.setTimeout(timeout)
 end
 
 return bolt

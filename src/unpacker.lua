@@ -24,7 +24,7 @@ function fn.u()
   elseif marker == 0xC2 then
     return false
   elseif marker == 0xC0 then
-    return nil
+    return {['neotype'] = 'null'}
   end
 
   local value
@@ -64,19 +64,20 @@ function fn.u()
 end
 
 function fn.Integer(marker)
-  if marker >= -16 and marker <= 127 then
-    return marker
+  if marker >> 4 >= 0xF or marker >> 4 <= 0x7 then
+    local i = string.unpack('>i1', string.char(marker))
+    return math.tointeger(i)
   elseif marker == 0xC8 then
-    local i, _ = string.unpack('>b', fn.next())
+    local i = string.unpack('>i1', fn.next())
     return math.tointeger(i)
   elseif marker == 0xC9 then
-    local i, _ = string.unpack('>h', fn.next(2))
+    local i = string.unpack('>i2', fn.next(2))
     return math.tointeger(i)
   elseif marker == 0xCA then
-    local i, _ = string.unpack('>l', fn.next(4))
+    local i = string.unpack('>i4', fn.next(4))
     return math.tointeger(i)
   elseif marker == 0xCB then
-    local i, _ = string.unpack('>i64', fn.next(8))
+    local i = string.unpack('>i8', fn.next(8))
     return math.tointeger(i)
   else
     return nil
@@ -85,7 +86,7 @@ end
 
 function fn.Float(marker)
   if marker == 0xC1 then
-    local f, _ = string.unpack('>d', fn.next(8))
+    local f = string.unpack('>d', fn.next(8))
     return tonumber(f)
   else
     return nil
@@ -97,11 +98,11 @@ function fn.String(marker)
   if marker >> 4 == 0x8 then
     length = 0x80 ~ marker
   elseif marker == 0xD0 then
-    length, _ = string.unpack('>B', fn.next())
+    length = string.unpack('>I1', fn.next())
   elseif marker == 0xD1 then
-    length, _ = string.unpack('>H', fn.next(2))
+    length = string.unpack('>I2', fn.next(2))
   elseif marker == 0xD2 then
-    length, _ = string.unpack('>L', fn.next(4))
+    length = string.unpack('>I4', fn.next(4))
   else
     return nil
   end
@@ -113,19 +114,18 @@ function fn.List(marker)
   if marker >> 4 == 0x9 then
     length = 0x90 ~ marker
   elseif marker == 0xD4 then
-    length, _ = string.unpack('>B', fn.next())
+    length = string.unpack('>I1', fn.next())
   elseif marker == 0xD5 then
-    length, _ = string.unpack('>H', fn.next(2))
+    length = string.unpack('>I2', fn.next(2))
   elseif marker == 0xD6 then
-    length, _ = string.unpack('>L', fn.next(4))
+    length = string.unpack('>I4', fn.next(4))
   else
     return nil
   end
   
   local output = {}
   if length > 0 then
-    local i
-    for i = 1, length, 1 do
+    for _ = 1, length, 1 do
       table.insert(output, fn.u())
     end
   end
@@ -138,19 +138,18 @@ function fn.Dictionary(marker)
   if marker >> 4 == 0xA then
     length = 0xA0 ~ marker
   elseif marker == 0xD8 then
-    length, _ = string.unpack('>B', fn.next())
+    length = string.unpack('>I1', fn.next())
   elseif marker == 0xD9 then
-    length, _ = string.unpack('>H', fn.next(2))
+    length = string.unpack('>I2', fn.next(2))
   elseif marker == 0xDA then
-    length, _ = string.unpack('>L', fn.next(4))
+    length = string.unpack('>I4', fn.next(4))
   else
     return nil
   end
   
   local output = {}
   if length > 0 then
-    local i = 0
-    for i = 1, length, 1 do
+    for _ = 1, length, 1 do
       output[fn.u()] = fn.u()
     end
   end
@@ -163,19 +162,19 @@ function fn.Structure(marker)
   if marker >> 4 == 0xB then
     size = 0xB0 ~ marker
   elseif marker == 0xDC then
-    size, _ = string.unpack('>B', fn.next())
+    size = string.unpack('>I1', fn.next())
   elseif marker == 0xDD then
-    size, _ = string.unpack('>H', fn.next(2))
+    size = string.unpack('>I2', fn.next(2))
   else
     return nil
   end
   
-  local signature, _ = string.unpack('>B', fn.next())
+  local signature = string.unpack('>I1', fn.next())
   local structure = structures.bySignature(signature)
   if structure ~= nil then
     local output = {['neotype'] = structure.neotype}
     for i = 1, #structure.keys, 1 do
-      local m, _ = string.unpack('>B', fn.next())
+      local m = string.unpack('>I1', fn.next())
       output[structure.keys[i]] = fn[structure.types[i]](m)
     end
     return output

@@ -10,8 +10,6 @@ bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'neo4j'})
 local result, err = bolt.query('RETURN 1 as num, $str as str', {str = 'Hello'})
 ```
 
-_Check test.lua for more examples._
-
 ### Aura
 
 ```lua
@@ -46,23 +44,31 @@ _More options for Luasec (setSSL) described [here](https://github.com/brunoos/lu
 
 _Check official [documentation](https://7687.org/bolt/bolt-protocol-message-specification-4.html) for more informations._
 
-### Table - List and Dictionary
+### Specific Neo4j types
 
-Neo4j support two array data types which are not available in Lua. Lua has only **table** type. You have to specify type with key **neotype** in your table. Available types are **list**, **dictionary** and Neo4j [structures](https://github.com/stefanak-michal/lua-neo4j/blob/master/src/structures.lua).
+Neo4j support two array data types which are not available in Lua. Lua has only **table** type. You have to specify type with key **neotype** in your table. You can use helper functions to add it. Available types are **list**, **dictionary** and Neo4j [structures](https://github.com/stefanak-michal/lua-neo4j/blob/master/src/structures.lua). Response doesn't contains neotype key for list and dictionary.
 
 ```lua
+-- List
 local result, err = bolt.query('RETURN $list AS list', {
-  ['list'] = {['neotype'] = 'list', 34, 65}
+  ['list'] = bolt.list({34, 65})
 })
--- OR
+-- Dictionary
 local result, err = bolt.query('RETURN $dict AS dict', {
-  ['dict'] = {['neotype'] = 'dictionary', ['one'] = 1, ['two'] = 2}
+  ['dict'] = bolt.dictionary({['one'] = 1, ['two'] = 2})
 })
 ```
 
-## What is missing
+Another issue is with **nil** while Neo4j has **null** type. If you set nil into table value in Lua, key is removed from table while Neo4j expects key _(in query parameters)_ even with null value. If you are looking how to set null we introduce to you another specific type. You can use helper function to generate it.
 
-- Tests coverage
+```lua
+local result, err = bolt.query('RETURN $n AS n', {
+  ['n'] = bolt.null()
+})
+
+-- Response from server is not decoded into table with neotype, because Lua can handle missing key as nil.
+-- result: {1 = {}}
+```
 
 ## Requires
 

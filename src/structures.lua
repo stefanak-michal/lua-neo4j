@@ -58,8 +58,8 @@ local structures = {
   {
     ['signature'] = 0x64,
     ['neotype'] = 'LocalDateTime',
-    ['keys'] = {'seconds'},
-    ['types'] = {'Integer'}
+    ['keys'] = {'seconds', 'nanoseconds'},
+    ['types'] = {'Integer', 'Integer'}
   },
   {
     ['signature'] = 0x45,
