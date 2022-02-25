@@ -40,4 +40,4 @@ jobs:
       
       - name: test
         run: |
-            busted
+            busted --no-keep-going

@@ -1,7 +1,7 @@
 local socket = require('socket')
 
 local connection = {
-  versions = { 4.4, 4.3 },
+  versions = { 4.4, 4.3, 4.2, 3 },
   ip = '127.0.0.1',
   port = 7687,
   secure = nil,
@@ -129,44 +129,23 @@ function connection.write(data)
     return 'Not connected'
   end
   
-  --local sended = 0
-  --local err
   local offset = 1
   
-  --print('data len', #data, bin2hex(data))
   repeat
     local chunk = string.sub(data, offset, offset + 65535 - 1)
-    --print('chunk len', #chunk)
     chunk = string.pack('>I2', #chunk) .. chunk
     if BOLT_DEBUG then
       print('C: ' .. bin2hex(chunk))
     end
     
     local sended, err = client:send(chunk)
-    --print('result', sended, err)
     if err ~= nil then
       return err
     end
     -- substract chunk length
     offset = offset + sended - 2
-    --print('finish', offset, #data)
   until offset >= #data
   
-  --[[print('data len', #data)
-  while sended < #data do
-    print('sended start', sended)
-    local chunk = string.sub(data, sended, sended + 65534)
-    print('chunk len', #chunk)
-    data = string.pack('>I2', #chunk) .. data
-    if BOLT_DEBUG then
-      print('C: ' .. bin2hex(data))
-    end
-    sended, err = client:send(data)
-    print('result', sended, err)
-    if err ~= nil then
-      return err
-    end
-  end]]
   
   if BOLT_DEBUG then
     print('C: 00 00')
