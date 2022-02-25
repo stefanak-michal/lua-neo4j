@@ -2,6 +2,8 @@
 
 Unofficial library for communication with Neo4j database over bolt tcp protocol.
 
+![build status](https://github.com/stefanak-michal/lua-neo4j/workflows/main.yml/badge.svg?branch=master)
+
 ## Usage
 
 ```lua

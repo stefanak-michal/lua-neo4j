@@ -1,5 +1,5 @@
 describe('Main', function()
-  local bolt = require('../src/bolt')
+  local bolt = require('src.bolt')
   math.randomseed(os.time())
   --_G['BOLT_DEBUG'] = true
   

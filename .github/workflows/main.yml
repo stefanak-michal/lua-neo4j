@@ -1,0 +1,43 @@
+name: Tests with a database
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: ['**']
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: "Running Integration tests for Lua on Neo4j ${{ matrix.neo4j-version }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        neo4j-version: ["3.5", "4.2", "4.3", "4.4"]
+
+    services:
+      neo4j:
+        image: neo4j:${{ matrix.neo4j-version }}
+        env:
+          NEO4J_AUTH: neo4j/nothing
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "wget http://localhost:7474 || exit 1"
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: leafo/gh-actions-lua@v5
+        with:
+          luaVersion: "5.3"
+      - uses: leafo/gh-actions-luarocks@v2
+      
+      - name: setup
+        run: |
+            luarocks install luasocket
+            luarocks install busted
+      
+      - name: test
+        run: |
+            busted
