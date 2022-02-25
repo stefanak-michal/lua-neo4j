@@ -2,7 +2,10 @@
 
 Unofficial library for communication with Neo4j database over bolt tcp protocol.
 
-![build status](https://github.com/stefanak-michal/lua-neo4j/workflows/main.yml/badge.svg?branch=master)
+[![Tests with a database](https://github.com/stefanak-michal/lua-neo4j/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/stefanak-michal/lua-neo4j/actions/workflows/main.yml)
+![](https://img.shields.io/github/stars/stefanak-michal/lua-neo4j) 
+![](https://img.shields.io/github/v/release/stefanak-michal/lua-neo4j) 
+![](https://img.shields.io/github/commits-since/stefanak-michal/lua-neo4j/latest)
 
 ## Usage
 
