@@ -28,16 +28,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: leafo/gh-actions-lua@v5
-        with:
-          luaVersion: "5.3"
-      - uses: leafo/gh-actions-luarocks@v2
-      
       - name: setup
         run: |
+            apt install lua5.3
+            apt install luarocks
             luarocks install luasocket
-            luarocks install busted
-      
+            luarocks install busted      
       - name: test
         run: |
             busted
