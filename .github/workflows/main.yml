@@ -30,8 +30,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: setup
         run: |
-            apt install lua5.3
-            apt install luarocks
+            sudo apt install lua5.3
+            sudo apt install luarocks
             luarocks install luasocket
             luarocks install busted      
       - name: test
