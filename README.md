@@ -7,6 +7,16 @@ Unofficial library for communication with Neo4j database over bolt tcp protocol.
 ![](https://img.shields.io/github/v/release/stefanak-michal/lua-neo4j) 
 ![](https://img.shields.io/github/commits-since/stefanak-michal/lua-neo4j/latest)
 
+## Install
+
+Download this repository and use source code from **src**.
+
+Or you can install it from https://luarocks.org/modules/stefanak-michal/bolt
+
+```
+luarocks install bolt
+```
+
 ## Usage
 
 ```lua
