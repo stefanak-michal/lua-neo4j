@@ -80,6 +80,11 @@ function bolt.init(auth)
   return processMessage(msg)
 end
 
+-- Connect and login to database
+function bolt.hello(auth)
+  return bolt.init(auth)
+end
+
 -- Shortcut for run and pull, returns rows with associated field keys
 function bolt.query(cypher, params, extra)
   local meta, rows, err

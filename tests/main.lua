@@ -27,6 +27,12 @@ describe('Main', function()
     assert:register("assertion", "similar", is_similar, "assertion.matches.positive", "assertion.matches.negative")
   end)
 
+  describe('set host', function()
+    local host = os.getenv('NEO4J_HOST')
+    if host ~= nil then
+      bolt.setHost(host)
+    end
+  end)
 
   it('init #init', function()
     local meta, err = bolt.init({scheme = 'basic', principal = 'neo4j', credentials = 'nothing'})
