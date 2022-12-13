@@ -95,14 +95,8 @@ function connection.connect()
     end
   end
 
-  -- Handshake
-  sended, err = conn:send(string.char(0x60, 0x60, 0xB0, 0x17))
-  if sended == nil then
-    return nil, err
-  end
-
-  -- Versions request
-  sended, err = conn:send(packVersions())
+  -- Handshake and Versions request
+  sended, err = conn:send(string.char(0x60, 0x60, 0xB0, 0x17) .. packVersions())
   if sended == nil then
     return nil, err
   end
